@@ -1,17 +1,18 @@
 import streamlit as st
-import os
-from pages.login import show_login
-from pages.signup import show_signup
-from pages.dashboard import show_dashboard
-from database.db_functions import init_connection
 
-# Set page configuration
+# Set page configuration - this should be the first Streamlit command
 st.set_page_config(
     page_title="Course Recommendation App",
     page_icon="📚",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+import os
+from pages.login import show_login
+from pages.signup import show_signup
+from pages.dashboard import show_dashboard
+from database.db_functions import init_connection
 
 # Add custom CSS for better styling
 st.markdown("""
@@ -60,16 +61,10 @@ if "current_page" not in st.session_state:
     st.session_state.current_page = "login"
 
 def main():
-    """Main function to control navigation and authentication"""
-    # Debug information - display current session state
-    st.sidebar.write("Debug Info:")
-    st.sidebar.write(f"Authenticated: {st.session_state.authenticated}")
-    st.sidebar.write(f"Current Page: {st.session_state.current_page}")
-    st.sidebar.write(f"User ID: {st.session_state.user_id}")
-    
+
     # Sidebar Navigation
     with st.sidebar:
-        st.title("📚 Learning Hub")
+        st.title("🧠 SkillSphere")
         st.markdown("---")
         
         if st.session_state.authenticated:
@@ -101,7 +96,7 @@ def main():
         # Add some information about the app
         st.markdown("---")
         st.markdown("### About")
-        st.markdown("""
+        st.markdown(""" 
         This app helps you find courses 
         based on your skills and interests.
         
