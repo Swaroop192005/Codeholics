@@ -1,6 +1,7 @@
 import sqlite3
 import pandas as pd
 from werkzeug.security import generate_password_hash, check_password_hash
+import datetime
 
 # --- User Model ---
 class User:
@@ -76,6 +77,20 @@ class User:
             return None
         return cls(id=row[0], username=row[1], email=row[2], password_hash=row[3], 
                    skills=row[4], education_level=row[5], about=row[6], created_at=row[7])
+    
+    @classmethod
+    def get_by_id(cls, conn, user_id):
+        """Find user by ID"""
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id, username, email, password_hash, skills, education_level, about, created_at FROM users WHERE id = ?", 
+            (user_id,)
+        )
+        row = cursor.fetchone()
+        if row is None:
+            return None
+        return cls(id=row[0], username=row[1], email=row[2], password_hash=row[3], 
+                   skills=row[4], education_level=row[5], about=row[6], created_at=row[7])
 
     @classmethod
     def get_all_users(cls, conn):
@@ -99,7 +114,17 @@ class User:
         cursor = conn.cursor()
         cursor.execute("SELECT 1 FROM users WHERE username = ?", (username,))
         return cursor.fetchone() is not None
-
+    
+    @staticmethod
+    def get_skills_by_user_id(conn, user_id):
+        """Fetch skills for a user from the database"""
+        cursor = conn.cursor()
+        cursor.execute("SELECT skills FROM users WHERE id = ?", (user_id,))
+        row = cursor.fetchone()
+        if row and row[0]:
+            return [skill.strip() for skill in row[0].split(",") if skill.strip()]
+        return []
+    
     @classmethod
     def import_from_csv(cls, conn, csv_path):
         """Import users from a CSV file"""
@@ -116,12 +141,13 @@ class User:
 
 # --- Course Model ---
 class Course:
-    def __init__(self, id=None, name=None, description=None, instructor=None, difficulty="Unknown"):
+    def __init__(self, id=None, name=None, description=None, instructor=None, difficulty="Unknown", num_subscribers=0):
         self.id = id
         self.name = name
         self.description = description
         self.instructor = instructor
         self.difficulty = difficulty
+        self.num_subscribers = num_subscribers
 
     @staticmethod
     def create_table(conn):
@@ -133,7 +159,8 @@ class Course:
             name TEXT NOT NULL,
             description TEXT,
             instructor TEXT NOT NULL,
-            difficulty TEXT DEFAULT 'Unknown'
+            difficulty TEXT DEFAULT 'Unknown',
+            num_subscribers INTEGER DEFAULT 0
         )
         ''')
         conn.commit()
@@ -143,14 +170,14 @@ class Course:
         cursor = conn.cursor()
         if self.id is None:
             cursor.execute(
-                "INSERT INTO courses (name, description, instructor, difficulty) VALUES (?, ?, ?, ?)",
-                (self.name, self.description, self.instructor, self.difficulty)
+                "INSERT INTO courses (name, description, instructor, difficulty, num_subscribers) VALUES (?, ?, ?, ?, ?)",
+                (self.name, self.description, self.instructor, self.difficulty, self.num_subscribers)
             )
             self.id = cursor.lastrowid
         else:
             cursor.execute(
-                "UPDATE courses SET name = ?, description = ?, instructor = ?, difficulty = ? WHERE id = ?",
-                (self.name, self.description, self.instructor, self.difficulty, self.id)
+                "UPDATE courses SET name = ?, description = ?, instructor = ?, difficulty = ?, num_subscribers = ? WHERE id = ?",
+                (self.name, self.description, self.instructor, self.difficulty, self.num_subscribers, self.id)
             )
         conn.commit()
         return self
@@ -159,9 +186,22 @@ class Course:
     def get_all_courses(cls, conn):
         """Retrieve all courses"""
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM courses")
+        cursor.execute("SELECT id, name, description, instructor, difficulty, num_subscribers FROM courses")
         rows = cursor.fetchall()
-        return [cls(*row) for row in rows]
+        return [cls(id=row[0], name=row[1], description=row[2], 
+                   instructor=row[3], difficulty=row[4], num_subscribers=row[5]) for row in rows]
+    
+    @classmethod
+    def get_by_id(cls, conn, course_id):
+        """Find course by ID"""
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, name, description, instructor, difficulty, num_subscribers FROM courses WHERE id = ?", 
+                      (course_id,))
+        row = cursor.fetchone()
+        if row is None:
+            return None
+        return cls(id=row[0], name=row[1], description=row[2], 
+                  instructor=row[3], difficulty=row[4], num_subscribers=row[5])
 
     @classmethod
     def import_from_csv(cls, conn, csv_path):
@@ -170,8 +210,9 @@ class Course:
         cursor = conn.cursor()
         for _, row in df.iterrows():
             cursor.execute(
-                "INSERT INTO courses (name, description, instructor, difficulty) VALUES (?, ?, ?, ?)",
-                (row["name"], row["description"], row["instructor"], row.get("difficulty", "Unknown"))
+                "INSERT INTO courses (name, description, instructor, difficulty, num_subscribers) VALUES (?, ?, ?, ?, ?)",
+                (row["name"], row["description"], row["instructor"], 
+                 row.get("difficulty", "Unknown"), row.get("num_subscribers", 0))
             )
         conn.commit()
 
@@ -185,3 +226,4 @@ def init_db():
 # Initialize database on script run
 if __name__ == "__main__":
     init_db()
+
